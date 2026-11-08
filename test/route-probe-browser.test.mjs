@@ -93,6 +93,16 @@ test('Route Probe preserves directed paths, Journey and export contracts', {
   async function route(source = 'users', target = 'db') {
     assert.equal(await run(`Archify.routeProbe.begin({source:${JSON.stringify(source)}});Archify.routeProbe.choose(${JSON.stringify(target)})`), true);
   }
+  // Fragments of each traced relationship (its path and any label), in route order, once camera and transitions settle.
+  async function tracedRelationships() {
+    await run(`routeWait(()=>!document.querySelector('.diagram-container').hasAttribute('data-camera-transaction'))`);
+    return run(`Promise.all(document.getAnimations().filter(a=>a instanceof CSSTransition).map(a=>a.finished.catch(()=>{}))).then(()=>{
+      const fragments=[...document.querySelectorAll('.diagram-container > svg [data-edge-from][data-edge-to]')];
+      return Archify.routeProbe.exportSnapshot().edges.map(edge=>fragments.filter(n=>n.dataset.edgeKey===edge.key).map(n=>({
+        label:n.matches('path,line,polyline')?null:n.textContent.trim(),match:n.hasAttribute('data-route-match'),
+        opacity:getComputedStyle(n).opacity,state:n.dataset.routeJourneyState||null})));
+    })`);
+  }
   async function hash(value) {
     await run(`new Promise(resolve=>{addEventListener('hashchange',()=>requestAnimationFrame(resolve),{once:true});location.hash=${JSON.stringify(value)};})`);
   }
@@ -123,7 +133,9 @@ test('Route Probe preserves directed paths, Journey and export contracts', {
     await run(`document.querySelector(${JSON.stringify(node('db'))}).focus()`); await key(' ', 'Space', 32);
     s = await snapshot('result'); assert.deepEqual(s.result.nodes, ['users', 'cdn', 'lb', 'api', 'db']); assert.equal(s.result.hops, 4);
     assert.equal(s.result.journey, -1); assert.equal(s.result.playing, false); assert.equal(s.focus, null);
-    assert.deepEqual(s.edges.map(e => [e.from, e.to]), [['users', 'cdn'], ['cdn', 'lb'], ['lb', 'api'], ['api', 'db']]);
+    assert.deepEqual([...new Map(s.edges.map(e => [e.key, [e.from, e.to]])).values()], [['users', 'cdn'], ['cdn', 'lb'], ['lb', 'api'], ['api', 'db']]);
+    assert.deepEqual((await tracedRelationships()).map(fragments => fragments.map(f => [f.label, f.match, f.opacity])),
+      [[[null, true, '1'], ['HTTPS', true, '1']], [[null, true, '1']], [[null, true, '1']], [[null, true, '1'], ['SQL', true, '1']]]);
     assert.equal(await run(`Archify.routeProbe.choose('cache')`), false);
     assert.equal(await run(`(()=>{const r=Archify.routeProbe.result();r.nodes.length=0;return Archify.routeProbe.result().nodes.length;})()`), 5);
     await load(); await run(`Archify.focus.set('api',{toggle:false});Archify.routeProbe.begin()`);
@@ -191,8 +203,10 @@ test('Route Probe preserves directed paths, Journey and export contracts', {
     assert.deepEqual(await run(`(()=>{const before=document.activeElement.dataset.routeJourneyIndex,event=new KeyboardEvent('keydown',{key:'End',bubbles:true,cancelable:true,metaKey:true});document.activeElement.dispatchEvent(event);return {prevented:event.defaultPrevented,focus:document.activeElement.dataset.routeJourneyIndex,before};})()`),{prevented:false,focus:'0',before:'0'});
     await key('End', 'End', 35); await key('ArrowRight', 'ArrowRight', 39); assert.equal(await run('document.activeElement.dataset.routeJourneyIndex'), '4');
     await key('Home', 'Home', 36); await key('ArrowRight', 'ArrowRight', 39); await key('Enter', 'Enter', 13);
-    let s = await snapshot('journey-position'); assert.equal(s.result.journey, 1); assert.deepEqual(s.currentEdges, [s.edges[0].key]);
+    let s = await snapshot('journey-position'); assert.equal(s.result.journey, 1); assert.deepEqual([...new Set(s.currentEdges)], [s.edges[0].key]);
     assert.deepEqual(s.journey.map(n=>n.state), ['past','current','future','future','future']); assert.equal(s.chips.filter(n=>n.tab===0).length, 1);
+    assert.deepEqual((await tracedRelationships()).map(fragments => fragments.map(f => [f.state, f.opacity])),
+      [[['current', '1'], ['current', '1']], [['future', '0.34']], [['future', '0.34']], [['future', '0.34'], ['future', '0.34']]]);
     await run(`routeWait(()=>!document.querySelector('.diagram-container').hasAttribute('data-camera-transaction'))`);
     await click('#route-journey-next'); assert.equal((await snapshot('journey-next')).result.journey, 2);
     await click('#route-journey-prev'); assert.equal((await snapshot('journey-prev')).result.journey, 1);

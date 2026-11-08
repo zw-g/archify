@@ -284,8 +284,11 @@ The nineteen methods remain `begin`, `choose`, `clear`, `toggle`, `escape`,
 - Nodes and edges are read dynamically. The node map keeps the last element per
   ID; it does not use Lens's kind filter or first-ID rule. Outgoing relationships
   require existing endpoints and ignore self-loops. BFS follows directed DOM edge
-  order, keeping the first reached path and exact edge references. There is no
-  grouping by edge key, weighted search, new sort order or persistent graph index.
+  order, keeping the first reached path and exact edge references. The search has
+  no grouping by edge key, weighted search, new sort order or persistent graph
+  index. Result and Journey marks extend to every fragment sharing a selected
+  edge's key, such as its label; overlays, pulses and `exportSnapshot` keep the
+  exact edge.
 - Source selection marks reachable targets, including the existing no-outgoing
   outcome. In target mode, same-node/unreachable choices return false and render
   error while retaining target mode. Unknown IDs and choices outside picker mode
@@ -305,7 +308,7 @@ The nineteen methods remain `begin`, `choose`, `clear`, `toggle`, `escape`,
   across those states. Focus requests retain their original targets even if a
   browser refuses focus on a disabled control. Finder owns its search panel;
   Route supplies allowed IDs/badges, finder-open state and close/docking callbacks.
-- Journey marks past/current/future nodes and the exact incoming edge. Position
+- Journey marks past/current/future nodes and the incoming edge's fragments. Position
   zero has no incoming pulse. Manual stepping stops playback and resets completion;
   arrows clamp at endpoints. Native chip focus pauses, while Enter/Space chooses
   the position. Camera reveal keeps the existing neighbor slice and parameters.

@@ -45,6 +45,12 @@
       function edges() {
         return Array.prototype.slice.call(svg.querySelectorAll('[data-edge-from][data-edge-to]'));
       }
+      function edgeFragments(edge) {
+        var key = edge.getAttribute('data-edge-key');
+        return key ? edges().filter(function (fragment) {
+          return fragment.getAttribute('data-edge-key') === key;
+        }) : [edge];
+      }
       function nodesById() {
         var out = Object.create(null);
         nodes().forEach(function (node) { out[node.getAttribute('data-node-id')] = node; });
@@ -511,9 +517,11 @@
         activeEdges.forEach(function (edge, step) {
           var destination = step + 1;
           var state = destination < journeyIndex ? 'past' : (destination === journeyIndex ? 'current' : 'future');
-          edge.setAttribute('data-route-journey-state', state);
-          if (destination === journeyIndex) edge.setAttribute('data-route-journey-current', '');
-          else edge.removeAttribute('data-route-journey-current');
+          edgeFragments(edge).forEach(function (fragment) {
+            fragment.setAttribute('data-route-journey-state', state);
+            if (destination === journeyIndex) fragment.setAttribute('data-route-journey-current', '');
+            else fragment.removeAttribute('data-route-journey-current');
+          });
         });
         var buttons = journeyButtons();
         buttons.forEach(function (button, step) {
@@ -737,9 +745,11 @@
           if (step === result.nodes.length - 1) node.setAttribute('data-route-end', '');
         });
         result.edges.forEach(function (edge, step) {
-          edge.setAttribute('data-route-match', '');
-          edge.setAttribute('data-route-step', String(step));
-          edge.style.setProperty('--route-step', String(step));
+          edgeFragments(edge).forEach(function (fragment) {
+            fragment.setAttribute('data-route-match', '');
+            fragment.setAttribute('data-route-step', String(step));
+            fragment.style.setProperty('--route-step', String(step));
+          });
         });
         svg.setAttribute('data-route-active', startId + '~' + endId);
         renderOverlay(result.edges);
