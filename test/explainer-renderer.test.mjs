@@ -57,7 +57,9 @@ test('renderer: canonical input, draft, child bytes and prepared bundle survive 
   const input = fixture(); input.meta.title = '`</script><script>injected</script>`';
   const draft = '# draft\n</script>\n& literal text';
   const bundle = {sourceText:draft,document:input,...resources(),dependencies:[],digest:'prepared-digest'};
-  const tree = parse(renderExplainer(input,{...resources(),sourceText:draft,preparedBundle:bundle}));
+  const html = renderExplainer(input,{...resources(),sourceText:draft,preparedBundle:bundle}); const tree = parse(html);
+  assert.deepEqual(html.match(/<\/body>/gi),['</body>'],'live-reload servers insert their script before every </body>, so only the page end may contain one');
+  assert.ok(html.endsWith('</body></html>'));
   assert.deepEqual(payload(tree,'archify-explainer-prepared').document,input);
   assert.equal(payload(tree,'archify-explainer-prepared').sourceText,draft);
   assert.deepEqual(payload(tree,'archify-explainer-prepared'),bundle);

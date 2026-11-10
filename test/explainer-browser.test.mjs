@@ -203,6 +203,11 @@ test('native step opens the complete Viewer and focuses exact nodes and edges wi
   const first=await focusStep(1,['api'],['api-to-redis-1']);await closeStep();const second=await focusStep(2,['redis'],['redis-to-api-1']);assert.equal(second.targetId,first.targetId,'The second step must update the existing native iframe');await closeStep();const reopened=await focusStep(1,['api'],['api-to-redis-1']);assert.equal(reopened.targetId,first.targetId);await closeStep();
   const corrupted=artifact('native-small-text',fs.readFileSync(file,'utf8').replace('</style>','\n.diagram-preview svg{width:100%!important;min-width:0!important}.diagram-preview{width:200px!important}\n</style>'));
   const broken=await inspectExplainerBrowser(browser,{artifactPath:corrupted,width:1440,height:900,theme:'light'});assert.ok(broken.interactionFailures.some(e=>e.name==='diagram-text'),'Actual reduced graph text must fail the 75% gate');
+  // live-server inserts its reload script before every case-insensitive </body> of the served file.
+  const reloading=artifact('native-live-reload',fs.readFileSync(file,'utf8').split(/<\/body>/i).join('<script>window.liveReloads=(window.liveReloads||0)+1</script></body>'));
+  await browser.resetPage();const live=await inspectPublicHtml(browser,{artifactPath:reloading,width:1440,keyboard:false});
+  assert.deepEqual({errors:live.consoleErrors,...await pageValue(browser,'({reader:document.documentElement.classList.contains("js"),reloads:window.liveReloads})')},{errors:[],reader:true,reloads:1},'the reader and the reload script both run under a live-reload server');
+  await focusStep(1,['api'],['api-to-redis-1']);await closeStep();
  }finally{await browser.close();}
 });
 
